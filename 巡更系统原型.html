@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能巡更系统 - 原型演示</title>
+    <!-- 引入 Bootstrap 5 快速构建界面 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; font-family: "Microsoft YaHei", sans-serif; }
+        .sidebar { background-color: #001529; min-height: 100vh; color: white; position: fixed; top: 0; left: 0; width: 200px; z-index: 100; }
+        .sidebar .nav-link { color: rgba(255,255,255,0.65); padding: 12px 20px; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: white; background-color: #1890ff; }
+        .sidebar .nav-link i { margin-right: 8px; }
+        .header { background-color: white; height: 64px; position: fixed; top: 0; left: 200px; right: 0; z-index: 99; box-shadow: 0 1px 4px rgba(0,21,41,0.08); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+        .main-content { margin-left: 200px; margin-top: 64px; padding: 24px; }
+        .card { border: none; border-radius: 4px; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); margin-bottom: 24px; }
+        .stat-card { text-align: center; padding: 20px; }
+        .stat-card .number { font-size: 28px; font-weight: bold; color: #1890ff; }
+        .camera-box { background-color: #e8e8e8; height: 200px; display: flex; align-items: center; justify-content: center; color: #999; border: 1px solid #d9d9d9; }
+        .table th { background-color: #fafafa; }
+        .btn-primary { background-color: #1890ff; border-color: #1890ff; }
+        .btn-danger { background-color: #ff4d4f; border-color: #ff4d4f; }
+        .badge-warning { background-color: #faad14; color: white; }
+        .badge-success { background-color: #52c41a; color: white; }
+        .badge-error { background-color: #ff4d4f; color: white; }
+        
+        /* 简单的模拟地图 */
+        .map-container { background: #f0f0f0; border: 1px solid #ddd; height: 500px; position: relative; overflow: hidden; }
+        .map-point { position: absolute; width: 20px; height: 20px; background: #1890ff; border-radius: 50%; border: 2px solid white; cursor: pointer; }
+        .map-point.active { background: #52c41a; transform: scale(1.2); }
+        .map-line { position: absolute; background: #1890ff; height: 3px; transform-origin: left center; z-index: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- 登录页 (默认隐藏) -->
+    <div id="login-page" class="container d-flex align-items-center justify-content-center" style="min-height: 100vh; display: none !important;">
+        <div class="card p-4" style="width: 400px;">
+            <h3 class="text-center mb-4">智能巡更系统</h3>
+            <div class="mb-3">
+                <label class="form-label">选择登录角色</label>
+                <select id="role-select" class="form-select">
+                    <option value="admin">系统管理员 (李管理)</option>
+                    <option value="supervisor" selected>物业主管 (王主管)</option>
+                    <option value="patrol">巡更工作人员 (赵巡更)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">用户名 (模拟)</label>
+                <input type="text" class="form-control" value="admin" readonly>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">密码 (模拟)</label>
+                <input type="password" class="form-control" value="123456" readonly>
+            </div>
+            <button id="login-btn" class="btn btn-primary w-100">登录</button>
+        </div>
+    </div>
+
+    <!-- 主系统界面 -->
+    <div id="main-app">
+        <!-- 侧边栏 -->
+        <div class="sidebar d-flex flex-column">
+            <div class="p-3 text-center border-bottom border-secondary">
+                <h5>智能巡更系统</h5>
+            </div>
+            <ul class="nav nav-pills flex-column mb-auto p-2" id="sidebar-menu">
+                <!-- 菜单项由JS控制显示 -->
+            </ul>
+        </div>
+
+        <!-- 顶部栏 -->
+        <div class="header">
+            <div class="d-flex align-items-center">
+                <span class="fs-5" id="page-title">首页（数据总览）</span>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="me-3">当前角色：<strong id="header-role">物业主管</strong></span>
+                <span class="me-3">欢迎您，<strong id="header-user">王主管</strong></span>
+                <button class="btn btn-outline-secondary btn-sm" id="logout-btn"><i class="bi bi-box-arrow-left"></i> 退出</button>
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="main-content" id="content-area">
+            <!-- 页面内容由JS动态渲染 -->
+        </div>
+    </div>
+
+    <!-- 模态框 (复用) -->
+    <div class="modal fade" id="common-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-title">标题</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- 内容 -->
+                </div>
+                <div class="modal-footer" id="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="modal-confirm-btn">确认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+    <script>
+        // --- 1. 全局状态与模拟数据 ---
+        const AppState = {
+            currentRole: 'supervisor', // admin, supervisor, patrol
+            currentPage: 'dashboard',
+            users: [
+                { id: 'admin', name: '李管理', role: 'admin' },
+                { id: 'sup1', name: '王主管', role: 'supervisor' },
+                { id: 'patrol1', name: '赵巡更', role: 'patrol', area: 'A区' },
+                { id: 'patrol2', name: '钱巡更', role: 'patrol', area: 'B区' },
+                { id: 'patrol3', name: '孙巡更', role: 'patrol', area: 'C区' }
+            ],
+            // 模拟异常数据
+            absenceData: [
+                { id: 1, name: '赵巡更', date: '2026-05-07', status: 'pending', comment: '' },
+                { id: 2, name: '钱巡更', date: '2026-05-05', status: 'approved', comment: '已补假' }
+            ],
+            insufficientData: [
+                { id: 1, name: '赵巡更', date: '2026-05-08', required: 4, actual: 2, status: 'pending', comment: '' },
+                { id: 2, name: '孙巡更', date: '2026-05-07', required: 4, actual: 3, status: 'confirmed', comment: '明日补巡' }
+            ],
+            cameraFaultData: [
+                { id: 1, camId: 'Cam-A01', location: '北门入口', time: '2026-05-08 09:00', status: 'pending', result: '' },
+                { id: 2, camId: 'Cam-B03', location: '中心花园', time: '2026-05-06 14:30', status: 'confirmed', result: '已维修完毕' }
+            ],
+            cameras: [
+                { id: 'Cam-A01', location: '北门入口', ip: '192.168.1.101', status: 'fault' },
+                { id: 'Cam-A02', location: '1号楼前', ip: '192.168.1.102', status: 'normal' },
+                { id: 'Cam-B03', location: '中心花园', ip: '192.168.1.203', status: 'normal' }
+            ]
+        };
+
+        // --- 2. 菜单与路由配置 ---
+        const MenuConfig = {
+            admin: [
+                { id: 'dashboard', name: '首页（数据总览）', icon: 'bi-speedometer2' },
+                { id: 'records', name: '巡更记录', icon: 'bi-map' },
+                { id: 'exception', name: '异常管理', icon: 'bi-exclamation-triangle', sub: ['absence', 'insufficient', 'camera-fault'] },
+                { id: 'reports', name: '报表中心', icon: 'bi-file-bar-graph', sub: ['weekly', 'monthly'] },
+                { id: 'cam-mgr', name: '摄像头管理', icon: 'bi-camera-video' },
+                { id: 'user-mgr', name: '用户管理', icon: 'bi-people' },
+                { id: 'profile', name: '个人中心', icon: 'bi-person' }
+            ],
+            supervisor: [
+                { id: 'dashboard', name: '首页（数据总览）', icon: 'bi-speedometer2' },
+                { id: 'records', name: '巡更记录', icon: 'bi-map' },
+                { id: 'exception', name: '异常管理', icon: 'bi-exclamation-triangle', sub: ['absence', 'insufficient', 'camera-fault'] },
+                { id: 'reports', name: '报表中心', icon: 'bi-file-bar-graph', sub: ['weekly', 'monthly'] },
+                { id: 'profile', name: '个人中心', icon: 'bi-person' }
+            ],
+            patrol: [
+                { id: 'dashboard', name: '首页（数据总览）', icon: 'bi-speedometer2' },
+                { id: 'records', name: '巡更记录', icon: 'bi-map' },
+                { id: 'exception', name: '异常管理', icon: 'bi-exclamation-triangle', sub: ['insufficient-patrol'] }, // 只能看自己的不足
+                { id: 'profile', name: '个人中心', icon: 'bi-person' }
+            ]
+        };
+
+        // --- 3. 页面渲染函数 ---
+        
+        function renderSidebar() {
+            const menus = MenuConfig[AppState.currentRole];
+            let html = '';
+            
+            menus.forEach(menu => {
+                if (menu.sub) {
+                    // 有子菜单
+                    html += `<li class="nav-item">
+                        <a class="nav-link collapsed" data-bs-toggle="collapse" href="#sub-${menu.id}">
+                            <i class="${menu.icon}"></i> ${menu.name}
+                        </a>
+                        <div class="collapse" id="sub-${menu.id}">
+                            <ul class="nav nav-pills flex-column ms-3">`;
+                                menu.sub.forEach(sub => {
+                                    let subName = '';
+                                    if(sub === 'absence') subName = '缺勤记录';
+                                    if(sub === 'insufficient') subName = '巡更不足';
+                                    if(sub === 'insufficient-patrol') subName = '巡更不足';
+                                    if(sub === 'camera-fault') subName = '摄像头故障';
+                                    if(sub === 'weekly') subName = '周报';
+                                    if(sub === 'monthly') subName = '月报';
+                                    
+                                    html += `<li class="nav-item"><a class="nav-link small" href="#" data-page="${sub}">${subName}</a></li>`;
+                                });
+                    html += `</ul></div></li>`;
+                } else {
+                    html += `<li class="nav-item">
+                        <a class="nav-link" href="#" data-page="${menu.id}">
+                            <i class="${menu.icon}"></i> ${menu.name}
+                        </a>
+                    </li>`;
+                }
+            });
+
+            $('#sidebar-menu').html(html);
+            bindMenuEvents();
+        }
+
+        function renderPage(pageId) {
+            AppState.currentPage = pageId;
+            $('#content-area').html('<div class="text-center mt-5"><div class="spinner-border text-primary" role="status"></div></div>');
+            
+            // 更新标题
+            let titleMap = {
+                'dashboard': '首页（数据总览）',
+                'records': '巡更记录',
+                'absence': '缺勤记录',
+                'insufficient': '巡更不足',
+                'insufficient-patrol': '巡更不足',
+                'camera-fault': '摄像头故障',
+                'weekly': '周报中心',
+                'monthly': '月报中心',
+                'cam-mgr': '摄像头管理',
+                'user-mgr': '用户管理',
+                'profile': '个人中心'
+            };
+            $('#page-title').text(titleMap[pageId] || '页面');
+
+            // 延迟模拟加载
+            setTimeout(() => {
+                switch (pageId) {
+                    case 'dashboard': renderDashboard(); break;
+                    case 'records': renderRecords(); break;
+                    case 'absence': renderAbsence(); break;
+                    case 'insufficient':
+                    case 'insufficient-patrol': renderInsufficient(); break;
+                    case 'camera-fault': renderCameraFault(); break;
+                    case 'weekly': renderReports('week'); break;
+                    case 'monthly': renderReports('month'); break;
+                    case 'cam-mgr': renderCamMgr(); break;
+                    case 'user-mgr': renderUserMgr(); break;
+                    case 'profile': renderProfile(); break;
+                    default: renderDashboard();
+                }
+            }, 300);
+        }
+
+        // --- 具体页面实现 ---
+
+        function renderDashboard() {
+            const isPatrol = AppState.currentRole === 'patrol';
+            let html = `
+                <div class="row g-3 mb-4">
+                    <!-- 实时监控 -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white"><strong>实时监控</strong></div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-3"><div class="camera-box"><i class="bi-camera-video-off fs-1"></i><br>Cam-A01 (故障)</div></div>
+                                    <div class="col-md-3"><div class="camera-box"><i class="bi-camera-video fs-1 text-success"></i><br>Cam-A02 (正常)</div></div>
+                                    <div class="col-md-3"><div class="camera-box"><i class="bi-camera-video fs-1 text-success"></i><br>Cam-B03 (正常)</div></div>
+                                    <div class="col-md-3"><div class="camera-box"><i class="bi-camera-video fs-1 text-success"></i><br>Cam-C01 (正常)</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row g-3 mb-4">
+                    <!-- 今日统计 -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white"><strong>今日巡更统计</strong></div>
+                            <div class="card-body">
+                                <div class="row">`;
+
+            if (isPatrol) {
+                // 巡更人员视图
+                html += `
+                    <div class="col-md-12 text-center">
+                        <h5>赵巡更 (A区)</h5>
+                        <div class="mt-3">
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar" role="progressbar" style="width: 75%;">已完成 3/4 圈</div>
+                            </div>
+                            <p class="mt-2 text-muted">还需巡逻 1 圈才能完成今日目标</p>
+                        </div>
+                    </div>`;
+            } else {
+                // 管理视图
+                html += `
+                    <div class="col-md-3 stat-card"><div class="number">3</div><div class="text-muted">应巡人数</div></div>
+                    <div class="col-md-3 stat-card"><div class="number text-success">2</div><div class="text-muted">实巡人数</div></div>
+                    <div class="col-md-3 stat-card"><div class="number text-danger">1</div><div class="text-muted">缺勤人数</div></div>
+                    <div class="col-md-3 stat-card"><div class="number text-warning">1</div><div class="text-muted">巡更不足</div></div>`;
+            }
+
+            html += `        </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- 异常提醒 -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <strong>异常提醒</strong>
+                                <a href="#" class="btn-link" onclick="renderPage('absence')">查看全部 ></a>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-hover mb-0">
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="badge badge-error">缺勤</span></td>
+                                            <td>赵巡更 - 2026-05-07 未出勤</td>
+                                            <td class="text-end text-muted">10分钟前</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="badge badge-warning">巡更不足</span></td>
+                                            <td>赵巡更 - 今日仅完成 2/4 圈</td>
+                                            <td class="text-end text-muted">刚刚</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            
+            $('#content-area').html(html);
+        }
+
+        function renderRecords() {
+            const isPatrol = AppState.currentRole === 'patrol';
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <div class="row align-items-center">
+                            <div class="col-md-2">
+                                <input type="date" class="form-control" value="2026-05-08">
+                            </div>
+                            ${!isPatrol ? `
+                            <div class="col-md-2">
+                                <select class="form-select">
+                                    <option>全部人员</option>
+                                    <option>赵巡更</option>
+                                    <option>钱巡更</option>
+                                </select>
+                            </div>` : ''}
+                            <div class="col-md-2">
+                                <button class="btn btn-primary">查询</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>巡更轨迹地图</h6>
+                                <div class="map-container" id="map-area">
+                                    <!-- 模拟点位 -->
+                                    <div class="map-point" style="top: 100px; left: 100px;" title="Cam-A01"></div>
+                                    <div class="map-point active" style="top: 100px; left: 300px;" title="Cam-A02"></div>
+                                    <div class="map-point active" style="top: 300px; left: 300px;" title="Cam-B01"></div>
+                                    <div class="map-point" style="top: 300px; left: 100px;" title="Cam-C01"></div>
+                                    <div class="text-center text-muted pt-5">（示意图：蓝色点为摄像头，绿色为已通过）</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>今日统计：共完成 <span class="text-primary">2</span> / 4 圈</h6>
+                                <div class="mt-3" style="border-left: 3px solid #1890ff; padding-left: 15px; margin-left: 10px;">
+                                    <div class="mb-3">
+                                        <small class="text-muted">09:00</small><br>
+                                        <strong>通过 Cam-A02 (1号楼前)</strong>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">09:15</small><br>
+                                        <strong>通过 Cam-B01 (中心花园)</strong>
+                                    </div>
+                                    <div class="text-muted">...更多点位</div>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm mt-3">导出轨迹记录</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderAbsence() {
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <div class="row align-items-center">
+                            <div class="col-md-3"><input type="date" class="form-control" placeholder="开始日期"></div>
+                            <div class="col-md-3"><select class="form-select"><option>全部状态</option><option>待审批</option><option>已审批</option></select></div>
+                            <div class="col-md-2"><button class="btn btn-primary">查询</button></div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>序号</th><th>姓名</th><th>缺勤日期</th><th>状态</th><th>审批意见</th><th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+            
+            AppState.absenceData.forEach((item, index) => {
+                let statusBadge = item.status === 'pending' 
+                    ? '<span class="badge badge-warning">待审批</span>' 
+                    : '<span class="badge badge-success">已审批</span>';
+                
+                let actionBtn = item.status === 'pending' 
+                    ? `<button class="btn btn-sm btn-primary" onclick="openApprovalModal(${item.id}, 'absence')">审批</button>`
+                    : `<button class="btn btn-sm btn-outline-secondary" onclick="alert('查看详情: ${item.comment}')">查看</button>`;
+
+                html += `<tr>
+                    <td>${index+1}</td>
+                    <td>${item.name}</td>
+                    <td>${item.date}</td>
+                    <td>${statusBadge}</td>
+                    <td>${item.comment || '-'}</td>
+                    <td>${actionBtn}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table></div></div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderInsufficient() {
+            const isPatrol = AppState.currentRole === 'patrol';
+            let data = AppState.insufficientData;
+            // 如果是巡更人员，过滤数据（模拟只能看自己）
+            if(isPatrol) data = data.filter(d => d.name === '赵巡更');
+
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white">筛选条件略...</div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    ${!isPatrol ? '<th>姓名</th>' : ''}
+                                    <th>日期</th><th>应巡圈数</th><th>实巡圈数</th><th>完成率</th><th>状态</th><th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+            
+            data.forEach((item, index) => {
+                let rate = Math.round((item.actual / item.required) * 100);
+                let statusBadge = item.status === 'pending' 
+                    ? '<span class="badge badge-warning">待确认</span>' 
+                    : '<span class="badge badge-success">已确认</span>';
+                
+                let btnText = isPatrol ? '确认' : '查看/确认';
+                let actionBtn = `<button class="btn btn-sm btn-primary" onclick="openConfirmModal(${item.id}, 'insufficient')">${btnText}</button>`;
+
+                html += `<tr>
+                    <td>${index+1}</td>
+                    ${!isPatrol ? `<td>${item.name}</td>` : ''}
+                    <td>${item.date}</td>
+                    <td>${item.required}</td>
+                    <td>${item.actual}</td>
+                    <td><div class="progress" style="width:80px; height:8px;"><div class="progress-bar bg-warning" style="width:${rate}%"></div></div> ${rate}%</td>
+                    <td>${statusBadge}</td>
+                    <td>${actionBtn}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table></div></div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderCameraFault() {
+            let html = `
+                <div class="card">
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr><th>编号</th><th>摄像头位置</th><th>上报时间</th><th>状态</th><th>处理结果</th><th>操作</th></tr>
+                            </thead>
+                            <tbody>`;
+            
+            AppState.cameraFaultData.forEach(item => {
+                let statusBadge = item.status === 'pending' 
+                    ? '<span class="badge badge-error">待确认</span>' 
+                    : '<span class="badge badge-success">已确认</span>';
+                
+                let actionBtn = item.status === 'pending' 
+                    ? `<button class="btn btn-sm btn-danger" onclick="openFaultModal(${item.id})">确认处理</button>`
+                    : '查看';
+
+                html += `<tr>
+                    <td>${item.camId}</td>
+                    <td>${item.location}</td>
+                    <td>${item.time}</td>
+                    <td>${statusBadge}</td>
+                    <td>${item.result || '-'}</td>
+                    <td>${actionBtn}</td>
+                </tr>`;
+            });
+
+            html += `</tbody></table></div></div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderReports(type) {
+            let title = type === 'week' ? '周报 (2026年 第19周)' : '月报 (2026年 5月)';
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <strong>${title}</strong>
+                        <div>
+                            <button class="btn btn-outline-primary me-2" onclick="renderReports('week')">周报</button>
+                            <button class="btn btn-outline-primary" onclick="renderReports('month')">月报</button>
+                            <button class="btn btn-success ms-3" onclick="alert('正在导出PDF...')"><i class="bi-download"></i> 导出报表</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-3 stat-card"><div class="number">5</div><div class="text-muted">本期缺勤次数</div></div>
+                            <div class="col-md-3 stat-card"><div class="number text-warning">3</div><div class="text-muted">巡更不足次数</div></div>
+                            <div class="col-md-3 stat-card"><div class="number text-danger">2</div><div class="text-muted">摄像头故障</div></div>
+                            <div class="col-md-3 stat-card"><div class="number text-success">92%</div><div class="text-muted">平均完成率</div></div>
+                        </div>
+                        
+                        <div class="text-center p-5 border rounded bg-light">
+                            <i class="bi-bar-chart-line fs-1 text-muted"></i>
+                            <p class="mt-2 text-muted">此处为图表占位符（柱状图：每日完成率 / 折线图：异常趋势）</p>
+                        </div>
+                    </div>
+                </div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderCamMgr() {
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <button class="btn btn-primary" onclick="alert('弹出新增摄像头弹窗')"><i class="bi-plus"></i> 添加摄像头</button>
+                        <button class="btn btn-outline-secondary ms-2" onclick="alert('弹出路线设置弹窗：拖拽排序摄像头，设置最少4圈')">设置巡更路线</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead><tr><th>编号</th><th>位置</th><th>IP地址</th><th>状态</th><th>操作</th></tr></thead>
+                            <tbody>`;
+            AppState.cameras.forEach(cam => {
+                let status = cam.status === 'normal' ? '<span class="badge badge-success">正常</span>' : '<span class="badge badge-error">故障</span>';
+                html += `<tr>
+                    <td>${cam.id}</td>
+                    <td>${cam.location}</td>
+                    <td>${cam.ip}</td>
+                    <td>${status}</td>
+                    <td><button class="btn btn-sm btn-outline-primary">编辑</button> <button class="btn btn-sm btn-outline-danger">删除</button></td>
+                </tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderUserMgr() {
+            let html = `
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <button class="btn btn-primary"><i class="bi-plus"></i> 添加用户</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover mb-0">
+                            <thead><tr><th>用户名</th><th>姓名</th><th>角色</th><th>联系方式</th><th>操作</th></tr></thead>
+                            <tbody>`;
+            AppState.users.forEach(user => {
+                let roleMap = {admin: '系统管理员', supervisor: '物业主管', patrol: '巡更工作人员'};
+                html += `<tr>
+                    <td>${user.id}</td>
+                    <td>${user.name}</td>
+                    <td><span class="badge bg-secondary">${roleMap[user.role]}</span></td>
+                    <td>138****0000</td>
+                    <td><button class="btn btn-sm btn-outline-primary">编辑</button> <button class="btn btn-sm btn-outline-danger">删除</button></td>
+                </tr>`;
+            });
+            html += `</tbody></table></div></div>`;
+            $('#content-area').html(html);
+        }
+
+        function renderProfile() {
+            const isPatrol = AppState.currentRole === 'patrol';
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header"><strong>个人信息</strong></div>
+                            <div class="card-body">
+                                <div class="mb-3 row">
+                                    <label class="col-sm-3 col-form-label">用户名</label>
+                                    <div class="col-sm-9"><input type="text" class="form-control" value="patrol1" readonly></div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-sm-3 col-form-label">姓名</label>
+                                    <div class="col-sm-9"><input type="text" class="form-control" value="赵巡更" readonly></div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-sm-3 col-form-label">角色</label>
+                                    <div class="col-sm-9"><input type="text" class="form-control" value="巡更工作人员" readonly></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header"><strong>修改密码</strong></div>
+                            <div class="card-body">
+                                <div class="mb-3"><input type="password" class="form-control" placeholder="旧密码"></div>
+                                <div class="mb-3"><input type="password" class="form-control" placeholder="新密码"></div>
+                                <div class="mb-3"><input type="password" class="form-control" placeholder="确认新密码"></div>
+                                <button class="btn btn-primary">保存修改</button>
+                            </div>
+                        </div>
+                        ${isPatrol ? `
+                        <div class="card">
+                            <div class="card-header"><strong>提醒设置</strong></div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label>提醒方式</label>
+                                    <select class="form-select">
+                                        <option>APP推送</option>
+                                        <option>短信通知</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary">保存设置</button>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+            $('#content-area').html(html);
+        }
+
+        // --- 4. 交互逻辑 ---
+
+        function bindMenuEvents() {
+            $('#sidebar-menu a.nav-link').on('click', function(e) {
+                e.preventDefault();
+                const page = $(this).data('page');
+                if (page) {
+                    // 移除其他active
+                    $('#sidebar-menu a.nav-link').removeClass('active');
+                    $(this).addClass('active');
+                    renderPage(page);
+                }
+            });
+        }
+
+        // 模态框逻辑
+        const Modal = new bootstrap.Modal('#common-modal');
+        
+        function openApprovalModal(id, type) {
+            $('#modal-title').text('缺勤审批');
+            $('#modal-body').html(`
+                <p><strong>姓名：</strong>赵巡更</p>
+                <p><strong>日期：</strong>2026-05-07</p>
+                <div class="mb-3">
+                    <label class="form-label">审批意见</label>
+                    <textarea class="form-control" id="approval-comment" rows="3"></textarea>
+                </div>
+            `);
+            $('#modal-footer').html(`
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" onclick="submitApproval(${id}, 'reject')">不同意</button>
+                <button type="button" class="btn btn-success" onclick="submitApproval(${id}, 'approve')">同意</button>
+            `);
+            Modal.show();
+        }
+
+        function submitApproval(id, action) {
+            // 模拟更新数据
+            let item = AppState.absenceData.find(d => d.id === id);
+            if(item) {
+                item.status = 'approved';
+                item.comment = action === 'approve' ? '同意，记为旷工' : '不同意，需补充说明';
+            }
+            Modal.hide();
+            alert('操作成功！');
+            renderAbsence(); // 刷新列表
+        }
+
+        function openConfirmModal(id, type) {
+            $('#modal-title').text('巡更不足确认');
+            $('#modal-body').html(`
+                <p><strong>确认信息：</strong>今日仅完成 2/4 圈，确认为巡更不足。</p>
+                <div class="mb-3">
+                    <label class="form-label">确认/补充说明</label>
+                    <textarea class="form-control" id="confirm-comment" rows="3" placeholder="如：明日补巡"></textarea>
+                </div>
+            `);
+            $('#modal-footer').html(`
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitConfirm(${id})">确认</button>
+            `);
+            Modal.show();
+        }
+
+        function submitConfirm(id) {
+            let item = AppState.insufficientData.find(d => d.id === id);
+            if(item) {
+                item.status = 'confirmed';
+                item.comment = '已确认';
+            }
+            Modal.hide();
+            alert('已确认！数据已同步至主管。');
+            renderInsufficient();
+        }
+
+        function openFaultModal(id) {
+            $('#modal-title').text('摄像头故障确认');
+            $('#modal-body').html(`
+                <p><strong>摄像头：</strong>Cam-A01 (北门入口)</p>
+                <p><strong>故障时间：</strong>2026-05-08 09:00</p>
+                <div class="mb-3">
+                    <label class="form-label">处理结果</label>
+                    <textarea class="form-control" rows="3" placeholder="如：已联系维修"></textarea>
+                </div>
+            `);
+            $('#modal-footer').html(`
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitFault(${id})">确认处理</button>
+            `);
+            Modal.show();
+        }
+
+        function submitFault(id) {
+            let item = AppState.cameraFaultData.find(d => d.id === id);
+            if(item) {
+                item.status = 'confirmed';
+                item.result = '已维修';
+            }
+            Modal.hide();
+            alert('处理完成！');
+            renderCameraFault();
+        }
+
+        // 初始化
+        function init() {
+            // 默认显示登录页逻辑简化，直接显示主界面
+            $('#login-page').hide();
+            $('#main-app').show();
+            
+            updateHeaderInfo();
+            renderSidebar();
+            renderPage('dashboard');
+        }
+
+        function updateHeaderInfo() {
+            let roleName = AppState.currentRole === 'admin' ? '系统管理员' : (AppState.currentRole === 'supervisor' ? '物业主管' : '巡更工作人员');
+            let userName = AppState.currentRole === 'admin' ? '李管理' : (AppState.currentRole === 'supervisor' ? '王主管' : '赵巡更');
+            
+            $('#header-role').text(roleName);
+            $('#header-user').text(userName);
+        }
+
+        // 登录/退出逻辑
+        $('#login-btn').click(function() {
+            AppState.currentRole = $('#role-select').val();
+            init();
+        });
+
+        $('#logout-btn').click(function() {
+            if(confirm('确定退出登录？')) {
+                // 简单刷新模拟回到登录
+                location.reload();
+            }
+        });
+
+        // 启动
+        $(document).ready(function() {
+            init();
+        });
+
+    </script>
+</body>
+</html>
