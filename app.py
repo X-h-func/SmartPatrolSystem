@@ -1,7 +1,7 @@
 """Smart Patrol System (智能巡更系统) - Flask Application Entry Point."""
 
 import os
-from flask import Flask, redirect, url_for
+from flask import Flask
 from flask_login import LoginManager
 
 from config import Config
@@ -58,6 +58,8 @@ def create_app():
             from seed import seed
             seed()
 
+    # Ensure template auto-reload is enabled
+    app.jinja_env.auto_reload = True
     return app
 
 
@@ -74,4 +76,4 @@ if __name__ == '__main__':
     print("    巡更人员2:  patrol2 / patrol123")
     print("    巡更人员3:  patrol3 / patrol123")
     print("=" * 60 + "\n")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)

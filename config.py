@@ -10,3 +10,5 @@ class Config:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
+    TEMPLATES_AUTO_RELOAD = True
+    DEBUG = True

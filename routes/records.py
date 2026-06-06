@@ -7,7 +7,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from models import db, User, Camera, PatrolRecord
-from services.detector import detect_persons
+from services.detector import detect_persons, get_detection_method
 
 records_bp = Blueprint('records', __name__)
 
@@ -53,9 +53,9 @@ def index():
 @records_bp.route('/records/upload', methods=['POST'])
 @login_required
 def upload():
-    """Handle image upload with person detection."""
-    if not current_user.is_patrol:
-        return jsonify({'success': False, 'error': '只有巡更人员可以上传'}), 403
+    """Handle image upload with person detection. All roles can upload for demo."""
+    # For non-patrol users, allow upload for demo/testing but with a note
+    is_demo = not current_user.is_patrol
 
     if 'image' not in request.files:
         return jsonify({'success': False, 'error': '请选择图片文件'}), 400
@@ -101,10 +101,16 @@ def upload():
     db.session.add(record)
     db.session.commit()
 
+    method = get_detection_method()
+    accuracy_note = ''
+    if 'HOG' in method:
+        accuracy_note = ' | 提示：安装 ultralytics 可大幅提升识别精度，详见 requirements.txt'
+
     return jsonify({
         'success': True,
         'person_count': person_count,
         'camera': cam.location if cam else '',
         'record_id': record.id,
-        'message': f'上传成功！检测到 {person_count} 人在 {cam.location if cam else "未知位置"}'
+        'detection_method': method,
+        'message': f'上传成功！识别到 {person_count} 人 ({method}){accuracy_note}{" (演示模式)" if is_demo else ""}'
     })
