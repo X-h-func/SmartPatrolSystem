@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block page_title %}巡更记录{% endblock %}
+{% block content %}
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white">
+                <form class="row g-2 align-items-end" method="GET">
+                    <div class="col-md-3">
+                        <label class="form-label">日期</label>
+                        <input type="date" name="date" class="form-control" value="{{ filter_date }}">
+                    </div>
+                    {% if current_user.is_admin or current_user.is_supervisor %}
+                    <div class="col-md-3">
+                        <label class="form-label">巡更人员</label>
+                        <select name="user_id" class="form-select">
+                            <option value="">全部人员</option>
+                            {% for u in patrol_users %}
+                            <option value="{{ u.id }}" {{ 'selected' if filter_user == u.id|string }}>{{ u.name }} ({{ u.area }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">查询</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.is_patrol %}
+<!-- 上传区域 -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white"><strong><i class="bi bi-cloud-upload"></i> 上传巡更图片</strong></div>
+            <div class="card-body">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">选择摄像头</label>
+                            <select name="camera_id" class="form-select" required>
+                                <option value="">-- 请选择 --</option>
+                                {% for cam in cameras %}
+                                <option value="{{ cam.id }}" {{ 'disabled' if cam.status == 'fault' }}>
+                                    {{ cam.camera_id }} - {{ cam.location }} ({{ cam.area }})
+                                    {{ '(故障)' if cam.status == 'fault' else '' }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">选择图片</label>
+                            <input type="file" name="image" class="form-control" accept="image/*" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100" id="upload-btn">
+                                <i class="bi bi-camera"></i> 上传检测
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <div id="upload-spinner" class="spinner-border text-primary d-none" role="status">
+                                <span class="visually-hidden">检测中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                <div id="upload-result" class="mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 记录列表 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <strong><i class="bi bi-list-ul"></i> 巡更记录列表</strong>
+                <small class="text-muted">共 {{ records|length }} 条记录</small>
+            </div>
+            <div class="card-body p-0">
+                {% if records %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                {% if current_user.is_admin or current_user.is_supervisor %}<th>巡更人员</th>{% endif %}
+                                <th>摄像头</th>
+                                <th>位置</th>
+                                <th>日期</th>
+                                <th>时间</th>
+                                <th>检测人数</th>
+                                <th>图片</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rec in records %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                {% if current_user.is_admin or current_user.is_supervisor %}<td>{{ rec.user.name }}</td>{% endif %}
+                                <td>{{ rec.camera.camera_id if rec.camera else '-' }}</td>
+                                <td>{{ rec.camera.location if rec.camera else '-' }}</td>
+                                <td>{{ rec.patrol_date }}</td>
+                                <td>{{ rec.capture_time.strftime('%H:%M:%S') if rec.capture_time else '-' }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if rec.person_count > 0 else 'bg-secondary' }}">
+                                        {{ rec.person_count }} 人
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if rec.image_path %}
+                                    <a href="{{ url_for('static', filename=rec.image_path) }}" target="_blank" class="btn btn-sm btn-outline-secondary">查看</a>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox fs-1 d-block"></i>
+                    暂无巡更记录
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.is_patrol %}
+<script>
+$(function() {
+    $('#upload-form').on('submit', function(e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        $('#upload-btn').prop('disabled', true);
+        $('#upload-spinner').removeClass('d-none');
+        $('#upload-result').addClass('d-none');
+
+        $.ajax({
+            url: '{{ url_for("records.upload") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                $('#upload-spinner').addClass('d-none');
+                $('#upload-btn').prop('disabled', false);
+                if (res.success) {
+                    $('#upload-result').removeClass('d-none alert-danger').addClass('alert alert-success')
+                        .html('<i class="bi bi-check-circle"></i> ' + res.message + ' | 记录ID: ' + res.record_id);
+                    // Reload page after 1.5s
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    $('#upload-result').removeClass('d-none alert-success').addClass('alert alert-danger')
+                        .html('<i class="bi bi-exclamation-triangle"></i> ' + res.error);
+                }
+            },
+            error: function() {
+                $('#upload-spinner').addClass('d-none');
+                $('#upload-btn').prop('disabled', false);
+                $('#upload-result').removeClass('d-none alert-success').addClass('alert alert-danger')
+                    .html('<i class="bi bi-exclamation-triangle"></i> 上传失败，请重试');
+            }
+        });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

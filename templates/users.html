@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block page_title %}用户管理{% endblock %}
+{% block content %}
+
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <button class="btn btn-primary" onclick="openAddUserModal()">
+            <i class="bi bi-plus"></i> 添加用户
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white"><strong>用户列表 (共 {{ users|length }} 人)</strong></div>
+    <div class="card-body p-0">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>用户名</th>
+                        <th>姓名</th>
+                        <th>角色</th>
+                        <th>区域</th>
+                        <th>联系方式</th>
+                        <th>注册时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td><strong>{{ u.username }}</strong></td>
+                        <td>{{ u.name }}</td>
+                        <td>
+                            {% if u.role == 'admin' %}
+                            <span class="badge bg-danger">系统管理员</span>
+                            {% elif u.role == 'supervisor' %}
+                            <span class="badge bg-primary">物业主管</span>
+                            {% else %}
+                            <span class="badge bg-secondary">巡更工作人员</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.area or '-' }}</td>
+                        <td>{{ u.phone or '-' }}</td>
+                        <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary"
+                                    onclick="openEditUserModal({{ u.id }}, '{{ u.username }}', '{{ u.name }}', '{{ u.role }}', '{{ u.area or '' }}', '{{ u.phone or '' }}')">
+                                编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning"
+                                    onclick="openResetPasswordModal({{ u.id }}, '{{ u.name }}')">
+                                重置密码
+                            </button>
+                            {% if u.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('users.delete', id=u.id) }}" style="display:inline"
+                                  onsubmit="return confirm('确定删除用户 {{ u.name }}？此操作不可恢复。')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddUserModal() {
+    $('#modal-title').text('添加用户');
+    $('#modal-body').html(`
+        <form id="add-user-form" method="POST" action="{{ url_for('users.add') }}">
+            <div class="mb-3">
+                <label class="form-label">用户名 *</label>
+                <input type="text" name="username" class="form-control" placeholder="登录用户名" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">密码 *</label>
+                <input type="password" name="password" class="form-control" placeholder="登录密码" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">姓名 *</label>
+                <input type="text" name="name" class="form-control" placeholder="用户姓名" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">角色 *</label>
+                <select name="role" class="form-select" id="add-user-role" required>
+                    <option value="patrol">巡更工作人员</option>
+                    <option value="supervisor">物业主管</option>
+                    <option value="admin">系统管理员</option>
+                </select>
+            </div>
+            <div class="mb-3" id="add-area-group">
+                <label class="form-label">负责区域</label>
+                <select name="area" class="form-select">
+                    <option value="">无</option>
+                    <option value="A区">A区</option>
+                    <option value="B区">B区</option>
+                    <option value="C区">C区</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">联系方式</label>
+                <input type="text" name="phone" class="form-control" placeholder="手机号码">
+            </div>
+        </form>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="submit" form="add-user-form" class="btn btn-primary">添加</button>
+    `);
+    // Show/hide area field based on role
+    $('#add-user-role').on('change', function() {
+        $('#add-area-group').toggle($(this).val() === 'patrol');
+    });
+    new bootstrap.Modal('#common-modal').show();
+}
+
+function openEditUserModal(id, username, name, role, area, phone) {
+    $('#modal-title').text('编辑用户: ' + name);
+    $('#modal-body').html(`
+        <form id="edit-user-form" method="POST" action="/users/${id}/edit">
+            <div class="mb-3">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-control" value="${username}" readonly>
+                <small class="text-muted">用户名不可修改</small>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">姓名</label>
+                <input type="text" name="name" class="form-control" value="${name}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">角色</label>
+                <select name="role" class="form-select" id="edit-user-role" required>
+                    <option value="patrol" ${role === 'patrol' ? 'selected' : ''}>巡更工作人员</option>
+                    <option value="supervisor" ${role === 'supervisor' ? 'selected' : ''}>物业主管</option>
+                    <option value="admin" ${role === 'admin' ? 'selected' : ''}>系统管理员</option>
+                </select>
+            </div>
+            <div class="mb-3" id="edit-area-group" style="${role !== 'patrol' ? 'display:none' : ''}">
+                <label class="form-label">负责区域</label>
+                <select name="area" class="form-select">
+                    <option value="">无</option>
+                    <option value="A区" ${area === 'A区' ? 'selected' : ''}>A区</option>
+                    <option value="B区" ${area === 'B区' ? 'selected' : ''}>B区</option>
+                    <option value="C区" ${area === 'C区' ? 'selected' : ''}>C区</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">联系方式</label>
+                <input type="text" name="phone" class="form-control" value="${phone}">
+            </div>
+        </form>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="submit" form="edit-user-form" class="btn btn-primary">保存修改</button>
+    `);
+    $('#edit-user-role').on('change', function() {
+        $('#edit-area-group').toggle($(this).val() === 'patrol');
+    });
+    new bootstrap.Modal('#common-modal').show();
+}
+
+function openResetPasswordModal(id, name) {
+    $('#modal-title').text('重置密码: ' + name);
+    $('#modal-body').html(`
+        <form id="reset-pwd-form" method="POST" action="/users/${id}/reset-password">
+            <p>确定要重置 <strong>${name}</strong> 的密码吗？</p>
+            <div class="mb-3">
+                <label class="form-label">新密码</label>
+                <input type="text" name="new_password" class="form-control" value="123456" required>
+                <small class="text-muted">默认密码: 123456</small>
+            </div>
+        </form>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="submit" form="reset-pwd-form" class="btn btn-warning">重置密码</button>
+    `);
+    new bootstrap.Modal('#common-modal').show();
+}
+</script>
+{% endblock %}

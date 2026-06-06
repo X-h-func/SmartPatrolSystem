@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block page_title %}巡更不足记录{% endblock %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header bg-white">
+        <form class="row g-2 align-items-end" method="GET">
+            <div class="col-md-3">
+                <label class="form-label">状态筛选</label>
+                <select name="status" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="pending" {{ 'selected' if status_filter == 'pending' }}>待确认</option>
+                    <option value="confirmed" {{ 'selected' if status_filter == 'confirmed' }}>已确认</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">查询</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        {% if records %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        {% if current_user.is_admin or current_user.is_supervisor %}<th>巡更人员</th><th>区域</th>{% endif %}
+                        <th>日期</th>
+                        <th>应巡圈数</th>
+                        <th>实巡圈数</th>
+                        <th>完成率</th>
+                        <th>状态</th>
+                        <th>说明</th>
+                        <th>确认人</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        {% if current_user.is_admin or current_user.is_supervisor %}
+                        <td>{{ r.user.name }}</td>
+                        <td>{{ r.user.area or '-' }}</td>
+                        {% endif %}
+                        <td>{{ r.patrol_date }}</td>
+                        <td><strong>{{ r.required_rounds }}</strong></td>
+                        <td><span class="text-{{ 'danger' if r.actual_rounds < r.required_rounds else 'success' }}"><strong>{{ r.actual_rounds }}</strong></span></td>
+                        <td>
+                            {% set rate = (r.actual_rounds / r.required_rounds * 100)|int %}
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 80px; height: 8px;">
+                                    <div class="progress-bar {{ 'bg-danger' if rate < 50 else 'bg-warning' if rate < 100 else 'bg-success' }}"
+                                         style="width: {{ rate }}%"></div>
+                                </div>
+                                <small>{{ rate }}%</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% if r.status == 'pending' %}
+                            <span class="badge badge-warning">待确认</span>
+                            {% else %}
+                            <span class="badge badge-success">已确认</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.comment or '-' }}</td>
+                        <td>{{ r.confirmer.name if r.confirmer else '-' }}</td>
+                        <td>
+                            {% if r.status == 'pending' %}
+                            <button class="btn btn-sm btn-primary"
+                                    onclick="openInsufficientConfirmModal({{ r.id }})">
+                                {{ '确认' if current_user.is_patrol else '确认' }}
+                            </button>
+                            {% else %}
+                            <span class="text-muted">已确认</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-check-circle fs-1 d-block"></i> 暂无巡更不足记录
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openInsufficientConfirmModal(id) {
+    $('#modal-title').text('巡更不足确认');
+    $('#modal-body').html(`
+        <p>确认该巡更不足记录？确认后将同步至主管。</p>
+        <div class="mb-3">
+            <label class="form-label">补充说明</label>
+            <textarea class="form-control" id="insufficient-comment" rows="3" placeholder="如：明日补巡"></textarea>
+        </div>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <form method="POST" action="/insufficient/${id}/confirm" style="display:inline">
+            <input type="hidden" name="comment" id="hidden-comment">
+            <button type="submit" class="btn btn-primary"
+                    onclick="document.getElementById('hidden-comment').value=document.getElementById('insufficient-comment').value">
+                确认
+            </button>
+        </form>
+    `);
+    new bootstrap.Modal('#common-modal').show();
+}
+</script>
+{% endblock %}

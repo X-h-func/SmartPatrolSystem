@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能巡更系统</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <div class="sidebar d-flex flex-column">
+        <div class="p-3 text-center border-bottom border-secondary">
+            <h5><i class="bi bi-shield-check"></i> 智能巡更系统</h5>
+        </div>
+        <ul class="nav nav-pills flex-column mb-auto p-2" id="sidebar-menu">
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.index' }}"
+                   href="{{ url_for('dashboard.index') }}">
+                    <i class="bi bi-speedometer2"></i> 首页（数据总览）
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'records.index' }}"
+                   href="{{ url_for('records.index') }}">
+                    <i class="bi bi-map"></i> 巡更记录
+                </a>
+            </li>
+
+            {% if current_user.is_admin or current_user.is_supervisor %}
+            <li class="nav-item">
+                <a class="nav-link collapsed" data-bs-toggle="collapse" href="#sub-exception">
+                    <i class="bi bi-exclamation-triangle"></i> 异常管理
+                </a>
+                <div class="collapse {{ 'show' if 'absences' in request.endpoint or 'insufficient' in request.endpoint or 'camera_faults' in request.endpoint }}" id="sub-exception">
+                    <ul class="nav nav-pills flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'exceptions.absences' }}"
+                               href="{{ url_for('exceptions.absences') }}">缺勤记录</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'exceptions.insufficient' }}"
+                               href="{{ url_for('exceptions.insufficient') }}">巡更不足</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'exceptions.camera_faults' }}"
+                               href="{{ url_for('exceptions.camera_faults') }}">摄像头故障</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if current_user.is_patrol %}
+            <li class="nav-item">
+                <a class="nav-link collapsed" data-bs-toggle="collapse" href="#sub-exception">
+                    <i class="bi bi-exclamation-triangle"></i> 异常管理
+                </a>
+                <div class="collapse {{ 'show' if request.endpoint == 'exceptions.insufficient' }}" id="sub-exception">
+                    <ul class="nav nav-pills flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'exceptions.insufficient' }}"
+                               href="{{ url_for('exceptions.insufficient') }}">巡更不足</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if current_user.is_admin or current_user.is_supervisor %}
+            <li class="nav-item">
+                <a class="nav-link collapsed" data-bs-toggle="collapse" href="#sub-reports">
+                    <i class="bi bi-file-bar-graph"></i> 报表中心
+                </a>
+                <div class="collapse {{ 'show' if 'reports' in request.endpoint }}" id="sub-reports">
+                    <ul class="nav nav-pills flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'reports.weekly' }}"
+                               href="{{ url_for('reports.weekly') }}">周报</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link small {{ 'active' if request.endpoint == 'reports.monthly' }}"
+                               href="{{ url_for('reports.monthly') }}">月报</a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            {% endif %}
+
+            {% if current_user.is_admin %}
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'cameras.index' }}"
+                   href="{{ url_for('cameras.index') }}">
+                    <i class="bi bi-camera-video"></i> 摄像头管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'users.index' }}"
+                   href="{{ url_for('users.index') }}">
+                    <i class="bi bi-people"></i> 用户管理
+                </a>
+            </li>
+            {% endif %}
+
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'profile.index' }}"
+                   href="{{ url_for('profile.index') }}">
+                    <i class="bi bi-person"></i> 个人中心
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 顶部栏 -->
+    <div class="header">
+        <div class="d-flex align-items-center">
+            <span class="fs-5" id="page-title">{% block page_title %}首页（数据总览）{% endblock %}</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="me-3">当前角色：<strong>{% if current_user.is_admin %}系统管理员{% elif current_user.is_supervisor %}物业主管{% else %}巡更工作人员{% endif %}</strong></span>
+            <span class="me-3">欢迎您，<strong>{{ current_user.name }}</strong></span>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary btn-sm"
+               onclick="return confirm('确定退出登录？')">
+                <i class="bi bi-box-arrow-left"></i> 退出
+            </a>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- 通用模态框 -->
+    <div class="modal fade" id="common-modal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-title">标题</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modal-body"></div>
+                <div class="modal-footer" id="modal-footer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

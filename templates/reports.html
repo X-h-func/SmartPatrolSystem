@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block page_title %}{{ '周报' if report_type == 'weekly' else '月报' }}{% endblock %}
+{% block content %}
+
+<div class="card mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div>
+            <strong>
+                {% if report_type == 'weekly' %}
+                <i class="bi bi-calendar-week"></i> 周报
+                {% else %}
+                <i class="bi bi-calendar-month"></i> 月报
+                {% endif %}
+                ({{ start_date }} ~ {{ end_date }})
+            </strong>
+        </div>
+        <div>
+            <a href="{{ url_for('reports.weekly') }}" class="btn btn-{{ 'primary' if report_type == 'weekly' else 'outline-primary' }} me-2">周报</a>
+            <a href="{{ url_for('reports.monthly') }}" class="btn btn-{{ 'primary' if report_type == 'monthly' else 'outline-primary' }} me-2">月报</a>
+            <a href="{{ url_for('reports.export_report', report_type=report_type) }}" class="btn btn-success">
+                <i class="bi bi-download"></i> 导出CSV
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number">{{ stats.total_absences }}</div>
+            <div class="text-muted">本期缺勤次数</div>
+            <small class="text-muted">已审批: {{ stats.approved_absences }} | 已驳回: {{ stats.rejected_absences }}</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-warning">{{ stats.insufficient_count }}</div>
+            <div class="text-muted">巡更不足次数</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-danger">{{ stats.camera_faults_count }}</div>
+            <div class="text-muted">摄像头故障</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card">
+            <div class="number text-success">{{ completion_rate }}%</div>
+            <div class="text-muted">平均出勤率</div>
+        </div>
+    </div>
+</div>
+
+<!-- 每日数据表格 -->
+<div class="card mb-4">
+    <div class="card-header bg-white"><strong>每日巡更数据</strong></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>巡更记录数</th>
+                        <th>缺勤人数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in stats.daily_data %}
+                    <tr>
+                        <td>{{ day.date }}</td>
+                        <td><span class="badge bg-primary">{{ day.records }}</span></td>
+                        <td><span class="badge {{ 'bg-danger' if day.absences > 0 else 'bg-success' }}">{{ day.absences }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 人员统计 -->
+<div class="card">
+    <div class="card-header bg-white"><strong>人员巡更统计</strong></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>姓名</th>
+                        <th>区域</th>
+                        <th>本期巡更记录</th>
+                        <th>缺勤次数</th>
+                        <th>巡更不足次数</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for us in stats.user_stats %}
+                    <tr>
+                        <td><strong>{{ us.name }}</strong></td>
+                        <td>{{ us.area }}</td>
+                        <td>{{ us.records }}</td>
+                        <td>
+                            <span class="{{ 'text-danger fw-bold' if us.absences > 0 else 'text-success' }}">
+                                {{ us.absences }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="{{ 'text-warning fw-bold' if us.insufficient > 0 else 'text-success' }}">
+                                {{ us.insufficient }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

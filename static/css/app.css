@@ -1,0 +1,243 @@
+/* 智能巡更系统 - 自定义样式 */
+
+body {
+    background-color: #f0f2f5;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+/* 侧边栏 */
+.sidebar {
+    background-color: #001529;
+    min-height: 100vh;
+    color: white;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    z-index: 100;
+    overflow-y: auto;
+}
+
+.sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.65);
+    padding: 12px 20px;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: white;
+    background-color: #1890ff;
+}
+
+.sidebar .nav-link i {
+    margin-right: 8px;
+}
+
+.sidebar .nav-link.small {
+    padding: 8px 20px 8px 35px;
+    font-size: 0.9rem;
+}
+
+/* 顶部栏 */
+.header {
+    background-color: white;
+    height: 64px;
+    position: fixed;
+    top: 0;
+    left: 200px;
+    right: 0;
+    z-index: 99;
+    box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+}
+
+/* 主内容区 */
+.main-content {
+    margin-left: 200px;
+    margin-top: 64px;
+    padding: 24px;
+}
+
+/* 卡片 */
+.card {
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    margin-bottom: 0;
+}
+
+.card-header {
+    background-color: white !important;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* 统计卡片 */
+.stat-card {
+    text-align: center;
+    padding: 20px;
+}
+
+.stat-card .number {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1890ff;
+}
+
+.stat-card .number.text-success {
+    color: #52c41a !important;
+}
+
+.stat-card .number.text-danger {
+    color: #ff4d4f !important;
+}
+
+.stat-card .number.text-warning {
+    color: #faad14 !important;
+}
+
+/* 摄像头预览框 */
+.camera-box {
+    background-color: #fafafa;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.camera-box:hover {
+    border-color: #1890ff;
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+}
+
+.camera-box.camera-fault {
+    background-color: #fff2f0;
+    border-color: #ffccc7;
+}
+
+/* 按钮 */
+.btn-primary {
+    background-color: #1890ff;
+    border-color: #1890ff;
+}
+
+.btn-primary:hover {
+    background-color: #40a9ff;
+    border-color: #40a9ff;
+}
+
+.btn-danger {
+    background-color: #ff4d4f;
+    border-color: #ff4d4f;
+}
+
+.btn-success {
+    background-color: #52c41a;
+    border-color: #52c41a;
+}
+
+/* 徽章 */
+.badge-warning {
+    background-color: #faad14;
+    color: white;
+}
+
+.badge-success {
+    background-color: #52c41a;
+    color: white;
+}
+
+.badge-error {
+    background-color: #ff4d4f;
+    color: white;
+}
+
+/* 表格 */
+.table th {
+    background-color: #fafafa;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* 地图模拟 */
+.map-container {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    height: 400px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+.map-point {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    background: #1890ff;
+    border-radius: 50%;
+    border: 3px solid white;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+}
+
+.map-point.active {
+    background: #52c41a;
+    transform: scale(1.2);
+}
+
+/* 进度条 */
+.progress {
+    background-color: #f0f0f0;
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 60px;
+        overflow: hidden;
+    }
+    .sidebar h5,
+    .sidebar .nav-link span,
+    .sidebar .nav-link small {
+        display: none;
+    }
+    .header {
+        left: 60px;
+    }
+    .main-content {
+        margin-left: 60px;
+    }
+}
+
+/* 模态框 */
+.modal-content {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-footer {
+    border-top: 1px solid #f0f0f0;
+}
+
+/* 上传预览 */
+#upload-result {
+    transition: all 0.3s;
+}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block page_title %}摄像头管理{% endblock %}
+{% block content %}
+
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <button class="btn btn-primary" onclick="openAddCameraModal()">
+            <i class="bi bi-plus"></i> 添加摄像头
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white"><strong>摄像头列表 (共 {{ cameras|length }} 台)</strong></div>
+    <div class="card-body p-0">
+        {% if cameras %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>编号</th>
+                        <th>位置</th>
+                        <th>IP地址</th>
+                        <th>区域</th>
+                        <th>状态</th>
+                        <th>备注</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cam in cameras %}
+                    <tr>
+                        <td><strong>{{ cam.camera_id }}</strong></td>
+                        <td>{{ cam.location }}</td>
+                        <td>{{ cam.ip_address or '-' }}</td>
+                        <td>{{ cam.area }}</td>
+                        <td>
+                            {% if cam.status == 'normal' %}
+                            <span class="badge badge-success">正常</span>
+                            {% else %}
+                            <span class="badge badge-error">故障</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ cam.notes or '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary"
+                                    onclick="openEditCameraModal({{ cam.id }}, '{{ cam.camera_id }}', '{{ cam.location }}', '{{ cam.ip_address or '' }}', '{{ cam.area }}', '{{ cam.status }}', '{{ cam.notes or '' }}')">
+                                编辑
+                            </button>
+                            <form method="POST" action="{{ url_for('cameras.toggle_status', id=cam.id) }}" style="display:inline">
+                                <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if cam.status == 'normal' else 'success' }}">
+                                    {{ '标记故障' if cam.status == 'normal' else '恢复' }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('cameras.delete', id=cam.id) }}" style="display:inline"
+                                  onsubmit="return confirm('确定删除摄像头 {{ cam.camera_id }}？此操作不可恢复。')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddCameraModal() {
+    $('#modal-title').text('添加摄像头');
+    $('#modal-body').html(`
+        <form id="add-camera-form" method="POST" action="{{ url_for('cameras.add') }}">
+            <div class="mb-3">
+                <label class="form-label">摄像头编号 *</label>
+                <input type="text" name="camera_id" class="form-control" placeholder="如: Cam-D01" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">位置 *</label>
+                <input type="text" name="location" class="form-control" placeholder="如: 西门入口" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">IP地址</label>
+                <input type="text" name="ip_address" class="form-control" placeholder="如: 192.168.1.200">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">区域 *</label>
+                <select name="area" class="form-select" required>
+                    <option value="">-- 请选择 --</option>
+                    <option value="A区">A区</option>
+                    <option value="B区">B区</option>
+                    <option value="C区">C区</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">状态</label>
+                <select name="status" class="form-select">
+                    <option value="normal">正常</option>
+                    <option value="fault">故障</option>
+                </select>
+            </div>
+        </form>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="submit" form="add-camera-form" class="btn btn-primary">添加</button>
+    `);
+    new bootstrap.Modal('#common-modal').show();
+}
+
+function openEditCameraModal(id, camId, location, ip, area, status, notes) {
+    $('#modal-title').text('编辑摄像头: ' + camId);
+    $('#modal-body').html(`
+        <form id="edit-camera-form" method="POST" action="/cameras/${id}/edit">
+            <div class="mb-3">
+                <label class="form-label">位置</label>
+                <input type="text" name="location" class="form-control" value="${location}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">IP地址</label>
+                <input type="text" name="ip_address" class="form-control" value="${ip}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">区域</label>
+                <select name="area" class="form-select" required>
+                    <option value="A区" ${area === 'A区' ? 'selected' : ''}>A区</option>
+                    <option value="B区" ${area === 'B区' ? 'selected' : ''}>B区</option>
+                    <option value="C区" ${area === 'C区' ? 'selected' : ''}>C区</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">状态</label>
+                <select name="status" class="form-select">
+                    <option value="normal" ${status === 'normal' ? 'selected' : ''}>正常</option>
+                    <option value="fault" ${status === 'fault' ? 'selected' : ''}>故障</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">备注</label>
+                <textarea name="notes" class="form-control" rows="2">${notes}</textarea>
+            </div>
+        </form>
+    `);
+    $('#modal-footer').html(`
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="submit" form="edit-camera-form" class="btn btn-primary">保存修改</button>
+    `);
+    new bootstrap.Modal('#common-modal').show();
+}
+</script>
+{% endblock %}
